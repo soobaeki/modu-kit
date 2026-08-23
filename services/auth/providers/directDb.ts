@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { InvalidCredentialsError } from "@/error";
 import { scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { AuthPayload, AuthProvider } from "../types";
@@ -25,20 +25,34 @@ export class DirectDbProvider implements AuthProvider {
     username: string,
     password: string,
   ): Promise<AuthPayload | null> {
+    const providerName = this.constructor.name;
+
     // [실무 사용 시] process.env.DATABASE_URL을 연결하여 DB 쿼리를 직접 실행하는 영역입니다.
     // 예: const user = await db.query("SELECT * FROM users WHERE user_id = ?", [username]);
-    const user = await prisma.user.findUnique({
-      where: {
-        userId: username,
-      },
-    });
+    const user = {
+      id: "usr_1",
+      userId: "admin",
+      passwordHash:
+        "2c69702edadb8e7ba3beb7ce873296d3:697a479d697970939afcd89db5ff20923398de031611d8988ea0ff24298896b236057f8e739e7004438065919a81d1c749d9a2eaeb1e810f320e36a0d7c8ba8f",
+      name: "관리자",
+      role: "ADMIN" as const,
+    };
 
-    // DB에 유저가 존재하지 않거나 아이디가 다르면 즉시 로그인 실패 처리
-    if (!user || user.userId !== username) return null;
-
-    // 사용자가 입력한 비밀번호와 DB의 암호화된 해시값을 비교 검증
+    // 유저 아이디 불일치
+    if (!user || user.userId !== username) {
+      throw new InvalidCredentialsError(
+        "아이디 또는 비밀번호가 일치하지 않습니다.",
+        providerName,
+      );
+    }
+    // 비밀번호 해시 검증
     const isValid = await this.verifyPassword(password, user.passwordHash);
-    if (!isValid) return null;
+    if (!isValid) {
+      throw new InvalidCredentialsError(
+        "아이디 또는 비밀번호가 일치하지 않습니다.",
+        providerName,
+      );
+    }
 
     // 비밀번호 검증 성공 시, 보안상 민감한 passwordHash는 제외하고 안전한 유저 정보만 반환
     return {
@@ -59,9 +73,6 @@ export class DirectDbProvider implements AuthProvider {
     password: string,
     combinedHash: string,
   ): Promise<boolean> {
-    // 테스트 및 개발 편의용: 입력값과 저장값이 단순 일치하면 즉시 통과 (운영 단계에서는 제거)
-    if (password === combinedHash) return true;
-
     try {
       // DB에 저장된 "Salt:DerivedKey" 포맷을 ':' 구분자로 분리
       const [salt, storedKeyHex] = combinedHash.split(":");
