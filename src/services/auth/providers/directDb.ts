@@ -1,4 +1,4 @@
-import { InvalidCredentialsError } from "@/error";
+import { InvalidCredentialsError } from "@/src/error";
 import { scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { AuthPayload, AuthProvider } from "../types";

@@ -9,7 +9,9 @@ import { NextResponse, type NextRequest } from "next/server";
 const getRefreshSecret = () => {
   const secret = process.env.JWT_REFRESH_SECRET;
   if (!secret) {
-    throw new Error("JWT_REFRESH_SECRET 환경변수가 설정되지 않았습니다.");
+    throw new Error(
+      `[FATAL ERROR] ${secret} JWT_REFRESH_SECRET 환경변수가 설정되지 않았습니다.`,
+    );
   }
   return new TextEncoder().encode(secret);
 };
@@ -24,12 +26,11 @@ const getRefreshSecret = () => {
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // 사용자의 브라우저 쿠키에서 HttpOnly Refresh Token 추출
+  const refreshToken = request.cookies.get("refreshToken")?.value;
 
   // /admin 경로 보호
   if (pathname.startsWith("/admin")) {
-    // 사용자의 브라우저 쿠키에서 HttpOnly Refresh Token 추출
-    const refreshToken = request.cookies.get("refreshToken")?.value;
-
     // 토큰 쿠키가 아예 없는 경우 -> 미인증 사용자로 판단하여 즉시 차단
     if (!refreshToken) {
       const loginUrl = new URL("/login", request.url);
@@ -50,7 +51,26 @@ export async function middleware(request: NextRequest) {
       const response = NextResponse.redirect(new URL("/login", request.url));
 
       // 보안을 위해 변조되었거나 만료된 쿠키를 브라우저에서 즉시 삭제
-      response.cookies.delete("refreshToken");
+      response.cookies.delete({
+        name: "refreshToken",
+        path: "/",
+      });
+      return response;
+    }
+  }
+
+  // 이미 로그인된 사용자가 /login 진입 시 /admin으로 리다이렉트 (역방향 가드)
+  if (pathname === "/login" && refreshToken) {
+    try {
+      await jwtVerify(refreshToken, getRefreshSecret());
+      return NextResponse.redirect(new URL("/admin", request.url));
+    } catch {
+      // 유효하지 않은 쿠키를 들고 /login에 접속한 경우 기존 쿠키 정리
+      const response = NextResponse.next();
+      response.cookies.delete({
+        name: "refreshToken",
+        path: "/",
+      });
       return response;
     }
   }
@@ -62,9 +82,7 @@ export async function middleware(request: NextRequest) {
 /**
  * [Middleware가 적용될 경로 지정]
  * - matcher에 등록된 경로로 접속할 때만 위의 middleware 함수가 동작합니다.
- * - 현재 설정: /admin 및 /admin/하위_모든_경로
- * - 추후 보호할 경로가 늘어나면 배열에 추가 가능 (예: ["/admin/:path*", "/mypage/:path*"])
  */
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/login"],
 };

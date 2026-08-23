@@ -2,7 +2,7 @@ import {
   AppError,
   ExternalServerError,
   InvalidCredentialsError,
-} from "@/error";
+} from "@/src/error";
 import { AuthPayload, AuthProvider } from "../types";
 
 /**
