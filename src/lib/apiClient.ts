@@ -121,7 +121,8 @@ apiClient.interceptors.response.use(
 
       // 로그인 페이지로 리다이렉트 (클라이언트 환경일 때만)
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = "/login";
       }
 
       return Promise.reject(refreshError);
