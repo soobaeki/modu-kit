@@ -5,15 +5,12 @@ import { AuthPayload, AuthProvider } from "./auth/types";
 
 class AuthService {
   private getProvider(): AuthProvider {
-    // 1. 환경변수를 통해 어떤 인증 방식을 쓸지 결정합니다.
-    const mode = process.env.AUTH_MODE || "db"; // "db", "api"
+    const mode = process.env.AUTH_MODE || "db";
 
-    // 2. 조건에 맞는 Provider 인스턴스를 반환합니다.
-    switch (mode) {
-      case "db":
-        return new DirectDbProvider();
+    switch (mode.toLocaleLowerCase()) {
       case "api":
         return new ExternalApiProvider();
+      case "db":
       default:
         return new DirectDbProvider();
     }
@@ -66,6 +63,16 @@ class AuthService {
         "INTERNAL_SERVER_ERROR",
         providerName,
       );
+    }
+  }
+
+  async findUserById(id: string): Promise<AuthPayload | null> {
+    const provider = this.getProvider();
+    try {
+      return await provider.findUserById(id);
+    } catch (error) {
+      console.error(`[AuthService] 유저 조회 실패 (ID: ${id}):`, error);
+      return null;
     }
   }
 }

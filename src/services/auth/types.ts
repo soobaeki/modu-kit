@@ -22,4 +22,5 @@ export interface AuthRecord extends AuthPayload {
  */
 export interface AuthProvider {
   authenticate(username: string, password: string): Promise<AuthPayload | null>;
+  findUserById(id: string): Promise<AuthPayload | null>;
 }

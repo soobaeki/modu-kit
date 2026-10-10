@@ -2,6 +2,7 @@ import { InvalidCredentialsError } from "@/src/error";
 import { scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { AuthPayload, AuthProvider } from "../types";
+import { MOCK_USERS } from "./mock";
 
 /**
  * Node.js 기본 crypto.scrypt 함수는 옛날 스타일인 콜백(Callback) 방식으로 동작합니다.
@@ -29,22 +30,16 @@ export class DirectDbProvider implements AuthProvider {
 
     // [실무 사용 시] process.env.DATABASE_URL을 연결하여 DB 쿼리를 직접 실행하는 영역입니다.
     // 예: const user = await db.query("SELECT * FROM users WHERE user_id = ?", [username]);
-    const user = {
-      id: "usr_1",
-      userId: "admin",
-      passwordHash:
-        "2c69702edadb8e7ba3beb7ce873296d3:697a479d697970939afcd89db5ff20923398de031611d8988ea0ff24298896b236057f8e739e7004438065919a81d1c749d9a2eaeb1e810f320e36a0d7c8ba8f",
-      name: "관리자",
-      role: "ADMIN" as const,
-    };
+    const user = Object.values(MOCK_USERS).find((u) => u.userId === username);
 
-    // 유저 아이디 불일치
+    // 유저 미존재 또는 아이디 불일치
     if (!user || user.userId !== username) {
       throw new InvalidCredentialsError(
         "아이디 또는 비밀번호가 일치하지 않습니다.",
         providerName,
       );
     }
+
     // 비밀번호 해시 검증
     const isValid = await this.verifyPassword(password, user.passwordHash);
     if (!isValid) {
@@ -61,6 +56,27 @@ export class DirectDbProvider implements AuthProvider {
       name: user.name,
       role: user.role,
     };
+  }
+
+  /**
+   * Silent Refresh / 토큰 재발급 시 유저 유효성 검증용 메서드
+   */
+  async findUserById(id: string): Promise<AuthPayload | null> {
+    try {
+      const user = Object.values(MOCK_USERS).find((u) => u.id === id);
+
+      if (!user) return null;
+
+      return {
+        id: user.id,
+        userId: user.userId,
+        name: user.name,
+        role: user.role,
+      };
+    } catch (error) {
+      console.error("[DirectDbProvider] findUserById 처리 실패:", error);
+      return null;
+    }
   }
 
   /**

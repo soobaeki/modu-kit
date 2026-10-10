@@ -101,4 +101,25 @@ export class ExternalApiProvider implements AuthProvider {
       );
     }
   }
+
+  async findUserById(id: string): Promise<AuthPayload | null> {
+    try {
+      const response = await fetch(
+        `${process.env.EXTERNAL_API_URL}/users/${id}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) return null;
+
+      const user = await response.json();
+      return user;
+    } catch (error) {
+      console.error("[ExternalApiProvider] findUserById 실패:", error);
+      return null;
+    }
+  }
 }

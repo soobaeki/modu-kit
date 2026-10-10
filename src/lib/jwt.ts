@@ -1,4 +1,4 @@
-import { AuthPayload } from "@/services/auth/types";
+import { AuthPayload } from "@/src/services/auth/types";
 import jwt from "jsonwebtoken";
 
 /**
